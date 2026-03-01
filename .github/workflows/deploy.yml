@@ -36,13 +36,13 @@ jobs:
 
     - name: Deploy to GKE
       run: |
-        # Creates your unique deployment
+        # This creates YOUR own deployment name so it doesn't touch your friend's TravelX site
         kubectl create deployment maglin-store --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
         
-        # Creates your unique Service/IP address
+        # This creates a brand new Load Balancer (and a NEW IP address) just for you
         kubectl expose deployment maglin-store --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
         
-        # Updates the image to your latest version
+        # This ensures the deployment is actually using your latest code
         kubectl set image deployment/maglin-store app=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
         
         kubectl rollout status deployment/maglin-store

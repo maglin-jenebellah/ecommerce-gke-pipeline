@@ -1,0 +1,44 @@
+name: Ecommerce Build and Deploy
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # <--- This tells the job to run on your GCP VM!
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}' # This uses the secret you just saved!
+
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        # Replace PROJECT_ID with your actual Google Project ID
+        gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+    - name: Build and Push Docker Image
+      run: |
+        # Replace PROJECT_ID and REPO_NAME with yours
+        docker build -t us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} .
+        docker push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
+
+    - name: Get GKE Credentials
+      uses: 'google-github-actions/get-gke-credentials@v2'
+      with:
+        cluster_name: 'my-gke-cluster' # <--- Check your GKE cluster name in GCP!
+        location: 'us-central1'
+
+    - name: Deploy to GKE
+      run: |
+        # This creates the deployment if it doesn't exist or updates it
+        kubectl create deployment ecommerce-app --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
+        kubectl expose deployment ecommerce-app --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
+        kubectl rollout status deployment/ecommerce-app

@@ -21,7 +21,7 @@ jobs:
 
     - name: Configure Docker for Artifact Registry
       run: |
-        # This matches the region of your Artifact Registry
+        # We will use us-central1 for the registry as originally planned
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
     - name: Build and Push Docker Image
@@ -34,10 +34,12 @@ jobs:
       uses: 'google-github-actions/get-gke-credentials@v2'
       with:
         cluster_name: 'my-gke-cluster'
-        location: 'asia-south1-a' # <--- CHANGED THIS TO MATCH YOUR SCREENSHOT
+        location: 'asia-south1-a' # Matches your screenshot 211851 exactly
 
     - name: Deploy to GKE
       run: |
+        # Forces the deployment to use the new image we just pushed
         kubectl create deployment ecommerce-app --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
         kubectl expose deployment ecommerce-app --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
+        kubectl set image deployment/ecommerce-app app=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
         kubectl rollout status deployment/ecommerce-app

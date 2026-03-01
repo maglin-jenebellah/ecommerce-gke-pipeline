@@ -11,16 +11,9 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Authenticate to Google Cloud
-      uses: 'google-github-actions/auth@v2'
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-    - name: Set up Cloud SDK
-      uses: 'google-github-actions/setup-gcloud@v2'
-
-    - name: Configure Docker for Artifact Registry
+    - name: Configure Docker
       run: |
+        # This uses the VM's built-in identity to log into your repo
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
     - name: Build and Push Docker Image
@@ -29,20 +22,19 @@ jobs:
         docker push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
 
     - name: Get GKE Credentials
-      uses: 'google-github-actions/get-gke-credentials@v2'
-      with:
-        cluster_name: 'my-gke-cluster'
-        location: 'asia-south1-a' 
+      run: |
+        # Connecting to your cluster without needing a separate secret key
+        gcloud container clusters get-credentials my-gke-cluster --zone asia-south1-a
 
     - name: Deploy to GKE
       run: |
-        # This creates YOUR own deployment name so it doesn't touch your friend's TravelX site
+        # Creates YOUR unique store separate from TravelX
         kubectl create deployment maglin-store --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
         
-        # This creates a brand new Load Balancer (and a NEW IP address) just for you
+        # Exposes it on a brand new IP address
         kubectl expose deployment maglin-store --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
         
-        # This ensures the deployment is actually using your latest code
+        # Forces the app to update if it's already there
         kubectl set image deployment/maglin-store app=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
         
         kubectl rollout status deployment/maglin-store

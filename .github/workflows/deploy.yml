@@ -13,13 +13,14 @@ jobs:
 
     - name: Configure Docker
       run: |
-        # This bypasses the 'Read Only' scope by using your active session token
-        echo $(gcloud auth print-access-token) | docker login -u oauth2access-token --password-stdin https://us-central1-docker.pkg.dev
+        # This uses the 'gcloud' helper directly which is the most reliable way on a locked VM
+        gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
     - name: Build and Push Docker Image
       run: |
-        docker build -t us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} .
-        docker push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
+        # We add 'sudo' here just in case the runner doesn't have permission to talk to the Docker socket
+        sudo docker build -t us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} .
+        sudo gcloud docker -- push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
 
     - name: Get GKE Credentials
       run: |

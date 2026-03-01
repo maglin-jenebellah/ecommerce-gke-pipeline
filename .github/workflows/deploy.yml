@@ -21,12 +21,10 @@ jobs:
 
     - name: Configure Docker for Artifact Registry
       run: |
-        # This logs your VM into the us-central1 registry where your purple repo is
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
     - name: Build and Push Docker Image
       run: |
-        # Building and pushing to internal-sandbox-446612 / ecommerce-repo
         docker build -t us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} .
         docker push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
 
@@ -38,8 +36,13 @@ jobs:
 
     - name: Deploy to GKE
       run: |
-        # Creates the app and opens it to the internet
-        kubectl create deployment ecommerce-app --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
-        kubectl expose deployment ecommerce-app --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
-        kubectl set image deployment/ecommerce-app app=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
-        kubectl rollout status deployment/ecommerce-app
+        # Creates your unique deployment
+        kubectl create deployment maglin-store --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Creates your unique Service/IP address
+        kubectl expose deployment maglin-store --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Updates the image to your latest version
+        kubectl set image deployment/maglin-store app=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
+        
+        kubectl rollout status deployment/maglin-store

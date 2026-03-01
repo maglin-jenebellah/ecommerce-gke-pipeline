@@ -5,7 +5,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted  # Runs on your maglin-github-runner VM
+    runs-on: self-hosted 
     
     steps:
     - name: Checkout Code
@@ -21,24 +21,23 @@ jobs:
 
     - name: Configure Docker for Artifact Registry
       run: |
-        # Configures Docker to talk to your specific Google Cloud region
+        # This matches the region of your Artifact Registry
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
     - name: Build and Push Docker Image
       run: |
-        # Using your Project ID: internal-sandbox-446612
+        # Using Project ID: internal-sandbox-446612
         docker build -t us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} .
         docker push us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }}
 
     - name: Get GKE Credentials
       uses: 'google-github-actions/get-gke-credentials@v2'
       with:
-        cluster_name: 'my-gke-cluster' # <--- Check this name in GCP Kubernetes Engine!
-        location: 'us-central1'
+        cluster_name: 'my-gke-cluster'
+        location: 'asia-south1-a' # <--- CHANGED THIS TO MATCH YOUR SCREENSHOT
 
     - name: Deploy to GKE
       run: |
-        # Deploys your app and creates a LoadBalancer for an External IP
         kubectl create deployment ecommerce-app --image=us-central1-docker.pkg.dev/internal-sandbox-446612/ecommerce-repo/app:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
         kubectl expose deployment ecommerce-app --type=LoadBalancer --port=80 --target-port=8080 --dry-run=client -o yaml | kubectl apply -f -
         kubectl rollout status deployment/ecommerce-app
